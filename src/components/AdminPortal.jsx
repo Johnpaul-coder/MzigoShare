@@ -12,6 +12,14 @@ import {
 import { registerDriver, assignDriverToPool } from '../services/poolService';
 import HubSpokeMap from './HubSpokeMap';
 
+const TRIP_STAGES = [
+  'Awaiting Cargo',
+  'Filling Pool',
+  'Loading Pickups',
+  'In Transit',
+  'Delivered',
+];
+
 export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
   const [adminTab, setAdminTab] = useState('database');
   const [driverForm, setDriverForm] = useState({
@@ -127,14 +135,14 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
               Listed Produce & Cargo Manifest Database
             </h2>
             <span className="text-xs font-semibold text-slate-500">
-              Live Firestore Sync •{' '}
+              Live Sync •{' '}
               {allGoods.reduce((s, g) => s + Number(g.weightKg || 0), 0).toLocaleString()} kg Total
             </span>
           </div>
 
           {allGoods.length === 0 ? (
             <div className="p-10 text-center text-xs text-slate-500">
-              No goods listed by users yet. Once a user lists produce, their tag, route, payment, and drop-off proof appear here.
+              No goods listed by users yet. Once a shipper books a slot, their tag, route, M-Pesa escrow reference, and drop-off proof appear here.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -142,7 +150,7 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
                   <tr>
                     <th className="px-4 py-3">Goods Tag</th>
-                    <th className="px-4 py-3">User / Farmer</th>
+                    <th className="px-4 py-3">Shipper / Farmer</th>
                     <th className="px-4 py-3">Product & Weight</th>
                     <th className="px-4 py-3">Route & Pickup</th>
                     <th className="px-4 py-3">Assigned Truck</th>
@@ -402,6 +410,7 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
                 (b) => b.deliveryStatus === 'Delivered'
               ).length;
               const totalBookings = (pool.bookings || []).length;
+              const activeIdx = TRIP_STAGES.indexOf(pool.tripStatus || 'Awaiting Cargo');
 
               return (
                 <div
@@ -431,31 +440,22 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
-                    {['Awaiting Cargo', 'Loading Pickups', 'In Transit', 'Delivered'].map(
-                      (stage, idx) => {
-                        const stages = [
-                          'Awaiting Cargo',
-                          'Loading Pickups',
-                          'In Transit',
-                          'Delivered',
-                        ];
-                        const activeIdx = stages.indexOf(pool.tripStatus || 'Awaiting Cargo');
-                        const isDone = idx <= activeIdx;
-                        return (
-                          <div
-                            key={stage}
-                            className={`py-2 px-1 rounded-lg border ${
-                              isDone
-                                ? 'bg-emerald-600 text-white border-emerald-600'
-                                : 'bg-slate-50 text-slate-400 border-slate-200'
-                            }`}
-                          >
-                            {stage}
-                          </div>
-                        );
-                      }
-                    )}
+                  <div className="grid grid-cols-5 gap-1.5 text-center text-[10px] font-bold">
+                    {TRIP_STAGES.map((stage, idx) => {
+                      const isDone = idx <= activeIdx;
+                      return (
+                        <div
+                          key={stage}
+                          className={`py-2 px-1 rounded-lg border ${
+                            isDone
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-slate-50 text-slate-400 border-slate-200'
+                          }`}
+                        >
+                          {stage}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

@@ -3,9 +3,9 @@ import {
   doc,
   onSnapshot,
   updateDoc,
-  arrayUnion,
   addDoc,
   getDoc,
+  runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../config/firebase';
@@ -104,51 +104,65 @@ export async function assignDriverToPool(poolId, driver) {
   });
 }
 
+// Atomic transaction prevents concurrent overbooking when two farmers pay simultaneously
 export async function joinTruckPool(poolId, booking) {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase Firestore is not configured.');
   }
 
   const poolRef = doc(db, 'truckPools', poolId);
-  const poolSnap = await getDoc(poolRef);
 
-  if (!poolSnap.exists()) {
-    throw new Error('Selected truck pool no longer exists.');
-  }
+  return runTransaction(db, async (transaction) => {
+    const poolSnap = await transaction.get(poolRef);
+    if (!poolSnap.exists()) {
+      throw new Error('Selected truck pool no longer exists.');
+    }
 
-  const poolData = poolSnap.data();
-  const remainingKg = Math.max(poolData.maxCapacityKg - poolData.currentWeightKg, 0);
-  const acceptedWeight = Math.min(Number(booking.weightKg), remainingKg);
+    const poolData = poolSnap.data();
+    const currentWeight = Number(poolData.currentWeightKg) || 0;
+    const maxCapacity = Number(poolData.maxCapacityKg) || 0;
+    const remainingKg = Math.max(maxCapacity - currentWeight, 0);
+    const requestedWeight = Number(booking.weightKg) || 0;
 
-  if (acceptedWeight <= 0) {
-    throw new Error('This truck pool is already at 100% capacity.');
-  }
+    if (remainingKg <= 0 || requestedWeight <= 0) {
+      throw new Error('This truck pool is already at 100% capacity.');
+    }
 
-  const randomTagNum = Math.floor(1000 + Math.random() * 9000);
-  const newBooking = {
-    id: `bk-${Date.now()}`,
-    goodsTag: `MZG-${randomTagNum}`,
-    uid: booking.uid || null,
-    farmerName: booking.farmerName.trim(),
-    productName: booking.productName?.trim() || poolData.produceType,
-    village: booking.village.trim(),
-    phone: booking.phone ? booking.phone.trim() : '',
-    weightKg: acceptedWeight,
-    channel: booking.channel,
-    paid: true,
-    mpesaReceipt: booking.mpesaReceipt || `USSD-${Date.now().toString().slice(-6)}`,
-    amountPaid: Number(booking.amountPaid) || 0,
-    escrowStatus: booking.escrowStatus || 'Held in Escrow',
-    deliveryStatus: 'Listed & Paid',
-    dropoffPhotoUrl: '',
-    dropoffNotes: '',
-    deliveredAt: null,
-    timestamp: new Date().toISOString(),
-  };
+    const acceptedWeight = Math.min(requestedWeight, remainingKg);
+    const randomTagNum = Math.floor(1000 + Math.random() * 9000);
 
-  await updateDoc(poolRef, {
-    currentWeightKg: poolData.currentWeightKg + acceptedWeight,
-    bookings: arrayUnion(newBooking),
+    const newBooking = {
+      id: `bk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      goodsTag: `MZG-${randomTagNum}`,
+      uid: booking.uid || null,
+      farmerName: booking.farmerName.trim(),
+      productName: booking.productName?.trim() || poolData.produceType,
+      village: booking.village.trim(),
+      phone: booking.phone ? booking.phone.trim() : '',
+      weightKg: acceptedWeight,
+      channel: booking.channel,
+      paid: true,
+      mpesaReceipt: booking.mpesaReceipt || `USSD-${Date.now().toString().slice(-6)}`,
+      amountPaid: Number(booking.amountPaid) || 0,
+      escrowStatus: booking.escrowStatus || 'Held in Escrow',
+      deliveryStatus: 'Listed & Paid',
+      dropoffPhotoUrl: '',
+      dropoffNotes: '',
+      deliveredAt: null,
+      timestamp: new Date().toISOString(),
+    };
+
+    const nextWeight = currentWeight + acceptedWeight;
+    const nextTripStatus =
+      poolData.tripStatus === 'Awaiting Cargo' ? 'Filling Pool' : poolData.tripStatus;
+
+    transaction.update(poolRef, {
+      currentWeightKg: nextWeight,
+      tripStatus: nextTripStatus,
+      bookings: [...(poolData.bookings || []), newBooking],
+    });
+
+    return newBooking;
   });
 }
 

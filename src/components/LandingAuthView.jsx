@@ -65,7 +65,8 @@ export default function LandingAuthView({ pools }) {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        await signUpUser({ fullName, phone, village, role, email, password });
+        const safeRole = role === 'driver' ? 'driver' : 'farmer';
+        await signUpUser({ fullName, phone, village, role: safeRole, email, password });
         setFullName('');
         setPhone('');
         setVillage('');
@@ -101,7 +102,7 @@ export default function LandingAuthView({ pools }) {
           <div className="flex items-center gap-3">
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              {isFirebaseConfigured ? 'Firestore Live Network' : 'Offline Mode'}
+              {isFirebaseConfigured ? 'Live Dispatch Network' : 'Offline Mode'}
             </span>
             <button
               onClick={() => switchMode('signin')}
@@ -132,7 +133,7 @@ export default function LandingAuthView({ pools }) {
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold px-3.5 py-1.5 rounded-full">
               <Sprout className="w-4 h-4" />
-              Destination-Based Agricultural Load Pooling
+              Shared Agricultural Freight Across Kenya
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight">
@@ -141,15 +142,15 @@ export default function LandingAuthView({ pools }) {
             </h1>
 
             <p className="text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
-              Pool your sub-tonnage crates with neighboring farmers along the same highway corridor.
-              Cut freight costs by up to <strong className="text-white">80%</strong> and track every
-              tagged load with photo proof of delivery.
+              Pool your produce crates with neighboring farmers along the same highway corridor.
+              Cut freight costs by up to <strong className="text-white">62%</strong> and track every
+              tagged load from farm pickup to verified market drop-off.
             </p>
 
             <div className="grid sm:grid-cols-3 gap-4 pt-2">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <TrendingUp className="w-5 h-5 text-amber-400 mb-2" />
-                <div className="text-xl font-extrabold text-white">Up to 80%</div>
+                <div className="text-xl font-extrabold text-white">Up to 62%</div>
                 <div className="text-xs text-slate-300 mt-0.5">Lower transport cost per kg</div>
               </div>
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
@@ -162,7 +163,7 @@ export default function LandingAuthView({ pools }) {
                 <div className="text-xl font-extrabold text-white">
                   {pools.length} Live {pools.length === 1 ? 'Route' : 'Routes'}
                 </div>
-                <div className="text-xs text-slate-300 mt-0.5">Active on Firestore right now</div>
+                <div className="text-xs text-slate-300 mt-0.5">Active corridors available today</div>
               </div>
             </div>
           </div>
@@ -175,8 +176,8 @@ export default function LandingAuthView({ pools }) {
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   {mode === 'signin'
-                    ? 'Sign in to access your User, Driver, or Admin Dispatch portal.'
-                    : 'Create your account to join shared agricultural corridors.'}
+                    ? 'Sign in to book truck space, track shipments, or manage trips.'
+                    : 'Create your free account to ship produce or register as a fleet driver.'}
                 </p>
               </div>
 
@@ -240,9 +241,8 @@ export default function LandingAuthView({ pools }) {
                         onChange={(e) => setRole(e.target.value)}
                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
                       >
-                        <option value="farmer">User / Farmer (List Produce & Track)</option>
-                        <option value="driver">Truck Driver (Map, Goods Tag & Drop-Off Photo)</option>
-                        <option value="admin">Admin Dispatch (Register Drivers, Routes & Fleet)</option>
+                        <option value="farmer">Farmer / Produce Shipper</option>
+                        <option value="driver">Commercial Truck Driver</option>
                       </select>
                     </div>
 
@@ -282,14 +282,14 @@ export default function LandingAuthView({ pools }) {
                       </div>
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Ward / Hub
+                          Ward / Market Hub
                         </label>
                         <div className="relative">
                           <MapPin className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                           <input
                             type="text"
                             required
-                            placeholder="e.g., Machakos"
+                            placeholder="e.g., Masii / Machakos"
                             value={village}
                             onChange={(e) => setVillage(e.target.value)}
                             className="w-full rounded-xl border border-slate-300 pl-10 pr-3.5 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
@@ -341,7 +341,7 @@ export default function LandingAuthView({ pools }) {
                   {loading
                     ? 'Please wait...'
                     : mode === 'signin'
-                    ? 'Continue to Portal'
+                    ? 'Sign In'
                     : 'Create Account & Verify Email'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -354,10 +354,10 @@ export default function LandingAuthView({ pools }) {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl font-extrabold text-slate-900">
-            How Shared Farm-to-Processor Logistics Works
+            How Shared Farm-to-Market Logistics Works
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            Built for both smartphone users and offline feature-phone farmers via USSD *384*55#.
+            Accessible via smartphone web or offline USSD (*384*55#) for rural feature phones.
           </p>
         </div>
 
@@ -379,7 +379,7 @@ export default function LandingAuthView({ pools }) {
             </div>
             <h3 className="font-bold text-base text-slate-900">2. Tagged Pickup & Live Map</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Assigned drivers follow the live OpenStreetMap corridor, scan your crate tag, and
+              Assigned drivers follow the live route map, verify your crate tag at pickup, and
               consolidate loads along the highway.
             </p>
           </div>
@@ -390,8 +390,8 @@ export default function LandingAuthView({ pools }) {
             </div>
             <h3 className="font-bold text-base text-slate-900">3. Photo Proof & Escrow Release</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Upon arrival at the drop location, the driver uploads a photo confirmation to unlock
-              M-Pesa escrow payouts.
+              Upon arrival at the destination gate, the driver uploads a photo confirmation to
+              release M-Pesa escrow payouts.
             </p>
           </div>
         </div>

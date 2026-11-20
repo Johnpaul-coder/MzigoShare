@@ -4,40 +4,41 @@ import { Package, Truck, Tag, Camera, ShieldCheck } from 'lucide-react';
 const STEPS = ['Listed & Paid', 'Tagged & Picked Up', 'In Transit', 'Delivered'];
 
 export default function UserShipmentTracker({ pools, userProfile }) {
-  const allShipments = pools.flatMap((pool) =>
-    (pool.bookings || []).map((b) => ({
-      ...b,
-      corridor: pool.corridor,
-      destination: pool.destination,
-      driverName: pool.driverName || 'Assigned Driver',
-      vehiclePlate: pool.vehiclePlate || 'Fleet Truck',
-    }))
+  if (!userProfile?.uid) return null;
+
+  const userShipments = pools.flatMap((pool) =>
+    (pool.bookings || [])
+      .filter((b) => b.uid === userProfile.uid)
+      .map((b) => ({
+        ...b,
+        corridor: pool.corridor,
+        destination: pool.destination,
+        driverName: pool.driverName || 'Assigned Driver',
+        vehiclePlate: pool.vehiclePlate || 'Fleet Truck',
+      }))
   );
 
-  const userShipments = allShipments.filter(
-    (s) =>
-      s.uid === userProfile?.uid ||
-      s.farmerName?.toLowerCase() === userProfile?.fullName?.toLowerCase()
-  );
-
-  const displayed = userShipments.length > 0 ? userShipments : allShipments;
-
-  if (displayed.length === 0) return null;
+  if (userShipments.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-      <div>
-        <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-          <Package className="w-5 h-5 text-emerald-600" />
-          My Listed Products & Live Delivery Progress
-        </h2>
-        <p className="text-xs text-slate-500">
-          Real-time status, cargo tag, amount paid, and driver drop-off photo verification.
-        </p>
+    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div>
+          <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <Package className="w-5 h-5 text-emerald-600" />
+            My Shipments & Live Delivery Progress
+          </h2>
+          <p className="text-xs text-slate-500">
+            Real-time status, cargo tag, M-Pesa escrow reference, and drop-off photo verification.
+          </p>
+        </div>
+        <span className="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1 rounded-full">
+          {userShipments.length} Active {userShipments.length === 1 ? 'Booking' : 'Bookings'}
+        </span>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {displayed.map((item) => {
+        {userShipments.map((item) => {
           const activeStepIdx = Math.max(
             STEPS.indexOf(item.deliveryStatus || 'Listed & Paid'),
             0
@@ -54,7 +55,7 @@ export default function UserShipmentTracker({ pools, userProfile }) {
                     <Tag className="w-3 h-3" /> {item.goodsTag || 'MZG-TAG'}
                   </span>
                   <h3 className="font-extrabold text-sm text-slate-900 mt-1">
-                    {item.productName} ({item.weightKg} kg)
+                    {item.productName || 'Agricultural Produce'} ({item.weightKg} kg)
                   </h3>
                   <p className="text-[11px] text-slate-500">{item.corridor}</p>
                 </div>

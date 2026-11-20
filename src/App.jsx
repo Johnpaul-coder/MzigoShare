@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Truck } from 'lucide-react';
+import { Truck, ShieldCheck, PhoneCall } from 'lucide-react';
 import Navbar from './components/Navbar';
 import PoolCard from './components/PoolCard';
 import BookingForm from './components/BookingForm';
@@ -21,7 +21,7 @@ export default function App() {
   const [pools, setPools] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [selectedPoolId, setSelectedPoolId] = useState(null);
-  const [activeTab, setActiveTab] = useState('user');
+  const [adminViewTab, setAdminViewTab] = useState('admin');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [userProfile, setUserProfile] = useState(null);
@@ -30,9 +30,9 @@ export default function App() {
   useEffect(() => {
     const unsubAuth = subscribeToAuth((profile) => {
       setUserProfile(profile);
-      if (profile?.role === 'admin') setActiveTab('admin');
-      else if (profile?.role === 'driver') setActiveTab('driver');
-      else setActiveTab('user');
+      if (profile?.role === 'admin') {
+        setAdminViewTab('admin');
+      }
       setAuthReady(true);
     });
 
@@ -44,16 +44,23 @@ export default function App() {
       });
     });
 
-    const unsubDrivers = subscribeToDrivers((updatedDrivers) => {
-      setDrivers(updatedDrivers);
-    });
-
     return () => {
       unsubAuth();
       unsubPools();
-      unsubDrivers();
     };
   }, []);
+
+  // Only load the full fleet driver registry when signed in as Admin
+  useEffect(() => {
+    if (userProfile?.role !== 'admin') {
+      setDrivers([]);
+      return;
+    }
+    const unsubDrivers = subscribeToDrivers((updatedDrivers) => {
+      setDrivers(updatedDrivers);
+    });
+    return () => unsubDrivers();
+  }, [userProfile?.role]);
 
   if (!authReady) {
     return (
@@ -67,12 +74,19 @@ export default function App() {
     return <LandingAuthView pools={pools} />;
   }
 
+  const isAdmin = userProfile.role === 'admin';
+  const effectiveView = isAdmin
+    ? adminViewTab
+    : userProfile.role === 'driver'
+    ? 'driver'
+    : 'user';
+
   const selectedPool = pools.find((p) => p.id === selectedPoolId) || pools[0] || null;
 
   const handleCreatePool = async (poolData) => {
     const newId = await createTruckPool({
       ...poolData,
-      createdBy: userProfile?.uid || null,
+      createdBy: userProfile.uid,
     });
     setSelectedPoolId(newId);
   };
@@ -80,14 +94,14 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeTab={effectiveView}
+        setActiveTab={isAdmin ? setAdminViewTab : () => {}}
         userProfile={userProfile}
         onLogout={logoutUser}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'user' && (
+        {effectiveView === 'user' && (
           <div className="space-y-8">
             <UserShipmentTracker pools={pools} userProfile={userProfile} />
 
@@ -95,21 +109,21 @@ export default function App() {
               <div className="lg:col-span-7 space-y-5">
                 <div>
                   <h1 className="text-2xl font-extrabold text-slate-900">
-                    Available Routes & Shared Trucks
+                    Active Routes & Shared Trucks
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
-                    Select an active corridor to view distance rates, list your product, and pay your pooled freight share.
+                    Select a scheduled corridor to compare net earnings, reserve truck weight capacity, and pay via M-Pesa escrow.
                   </p>
                 </div>
 
                 {pools.length === 0 ? (
-                  <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center space-y-3">
-                    <Truck className="w-10 h-10 text-slate-400 mx-auto" />
+                  <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center space-y-3 shadow-sm">
+                    <Truck className="w-10 h-10 text-emerald-600 mx-auto" />
                     <h3 className="text-base font-bold text-slate-800">
-                      No Active Routes Available Yet
+                      No Scheduled Departures Right Now
                     </h3>
                     <p className="text-xs text-slate-500 max-w-md mx-auto">
-                      Switch to the <strong>Admin (Fleet & DB)</strong> tab to register a driver and publish a route.
+                      New Machakos–Nairobi truck pools are dispatched daily. Check back shortly or contact dispatch support for urgent bulk consignments.
                     </p>
                   </div>
                 ) : (
@@ -136,7 +150,7 @@ export default function App() {
                 )}
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 text-center mb-2">
-                    Offline Feature-Phone USSD Access (*384*55#)
+                    Offline Feature-Phone Booking (*384*55#)
                   </h4>
                   <UssdSimulator pools={pools} onBook={joinTruckPool} />
                 </div>
@@ -145,9 +159,11 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'driver' && <DriverPortal pools={pools} userProfile={userProfile} />}
+        {effectiveView === 'driver' && (
+          <DriverPortal pools={pools} userProfile={userProfile} />
+        )}
 
-        {activeTab === 'admin' && (
+        {effectiveView === 'admin' && isAdmin && (
           <AdminPortal
             pools={pools}
             drivers={drivers}
@@ -156,11 +172,32 @@ export default function App() {
         )}
       </main>
 
-      <CreatePoolModal
-        isOpen={isCreateOpen}
-        onClose={() => setIsCreateOpen(false)}
-        onCreate={handleCreatePool}
-      />
+      <footer className="bg-white border-t border-slate-200 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-2 font-medium text-slate-700">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>MzigoShare Logistics Kenya • M-Pesa Escrow Protected Cargo</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              href="tel:+254702710163"
+              className="inline-flex items-center gap-1.5 text-slate-600 hover:text-emerald-700 font-semibold"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+              Dispatch Support: 0702 710 163
+            </a>
+            <span>© {new Date().getFullYear()} MzigoShare</span>
+          </div>
+        </div>
+      </footer>
+
+      {isAdmin && (
+        <CreatePoolModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          onCreate={handleCreatePool}
+        />
+      )}
     </div>
   );
 }

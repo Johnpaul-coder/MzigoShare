@@ -42,33 +42,34 @@ export default function DriverPortal({ pools, userProfile }) {
       return;
     }
 
-    setIsBroadcasting(true);
-    setGpsStatus('Acquiring GPS signal...');
-
-    if ('geolocation' in navigator) {
-      watchIdRef.current = navigator.geolocation.watchPosition(
-        async (pos) => {
-          const { latitude, longitude, speed } = pos.coords;
-          await updatePoolLiveLocation(activePool.id, {
-            lat: latitude,
-            lng: longitude,
-            speedKmh: speed || 15,
-          });
-          setGpsStatus(`Live GPS active (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
-        },
-        async () => {
-          const simLat = -1.4485 + (Math.random() - 0.5) * 0.01;
-          const simLng = 37.095 + (Math.random() - 0.5) * 0.01;
-          await updatePoolLiveLocation(activePool.id, {
-            lat: simLat,
-            lng: simLng,
-            speedKmh: 16.5,
-          });
-          setGpsStatus(`Simulated Highway GPS active (${simLat.toFixed(4)}, ${simLng.toFixed(4)})`);
-        },
-        { enableHighAccuracy: true, maximumAge: 5000 }
-      );
+    if (!('geolocation' in navigator)) {
+      setGpsStatus('GPS is not supported on this device/browser.');
+      return;
     }
+
+    setIsBroadcasting(true);
+    setGpsStatus('Acquiring device GPS signal...');
+
+    watchIdRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude, longitude, speed } = pos.coords;
+        await updatePoolLiveLocation(activePool.id, {
+          lat: latitude,
+          lng: longitude,
+          speedKmh: speed ? Math.round(speed * 3.6) : 0,
+        });
+        setGpsStatus(`Live GPS active (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+      },
+      (err) => {
+        setIsBroadcasting(false);
+        setGpsStatus(
+          err.code === 1
+            ? 'Location permission denied. Please allow GPS access in your browser.'
+            : 'Unable to acquire GPS fix. Move outdoors and try again.'
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
   };
 
   const handlePhotoUpload = (poolId, bookingId, file) => {
@@ -90,7 +91,7 @@ export default function DriverPortal({ pools, userProfile }) {
 
         await updateBookingDelivery(poolId, bookingId, {
           deliveryStatus: 'Delivered',
-          escrowStatus: 'Released to Farmer',
+          escrowStatus: 'Delivered — Escrow Verified',
           dropoffPhotoUrl: compressedDataUrl,
           dropoffNotes:
             dropoffNotes[bookingId] || `Dropped off safely at ${activePool?.destination}`,
@@ -170,7 +171,7 @@ export default function DriverPortal({ pools, userProfile }) {
 
           {(activePool.bookings || []).length === 0 ? (
             <p className="text-xs text-slate-500 py-6 text-center">
-              No farmer cargo slots booked on this route yet.
+              No shipper cargo slots booked on this route yet.
             </p>
           ) : (
             <div className="grid md:grid-cols-2 gap-4">
@@ -282,7 +283,7 @@ export default function DriverPortal({ pools, userProfile }) {
                       <div className="pt-2 border-t border-emerald-200 space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
                           <CheckCircle2 className="w-4 h-4" />
-                          Delivered & Escrow Released
+                          Delivered & Escrow Verified
                         </div>
                         <img
                           src={b.dropoffPhotoUrl}
