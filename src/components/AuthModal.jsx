@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { UserCheck, X, Lock, Mail, User, Phone, MapPin } from 'lucide-react';
-import { signInUser, signUpUser } from '../services/authService';
+import React, { useState, useEffect } from 'react';
+import { UserCheck, X, Lock, Mail, User, Phone, MapPin, RefreshCw } from 'lucide-react';
+import { signInUser, signUpUser, resendVerificationEmail } from '../services/authService';
 
 export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
   const [mode, setMode] = useState(initialMode); // 'signin' | 'signup'
@@ -11,37 +11,79 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState('');
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    setMode(initialMode);
+    setError('');
+    setSuccessMsg('');
+    setNeedsVerification(false);
+  }, [initialMode, isOpen]);
 
   if (!isOpen) return null;
 
   const switchMode = (newMode) => {
     setMode(newMode);
     setError('');
+    setSuccessMsg('');
+    setNeedsVerification(false);
+  };
+
+  const handleResend = async () => {
+    if (!email || !password) {
+      setError('Enter your email and password above, then click Resend.');
+      return;
+    }
+    setResending(true);
+    setError('');
+    try {
+      await resendVerificationEmail(email, password);
+      setSuccessMsg(`Verification email resent to ${email}. Check your Inbox or Spam folder.`);
+      setNeedsVerification(false);
+    } catch (err) {
+      setError('Could not resend email. Verify your password is correct and wait 60 seconds.');
+    } finally {
+      setResending(false);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
+    setNeedsVerification(false);
     setLoading(true);
     try {
       if (mode === 'signup') {
         await signUpUser({ fullName, phone, village, role, email, password });
+        setFullName('');
+        setPhone('');
+        setVillage('');
+        setPassword('');
+        setMode('signin');
+        setSuccessMsg(
+          `Verification link sent to ${email}! Open your email (check Spam if needed), click the link, then sign in.`
+        );
       } else {
         await signInUser(email, password);
+        setEmail('');
+        setPassword('');
+        onClose();
       }
-      setFullName('');
-      setPhone('');
-      setVillage('');
-      setEmail('');
-      setPassword('');
-      onClose();
     } catch (err) {
-      const msg = err.message
-        .replace('Firebase: ', '')
-        .replace(/\(auth\/.*\)\.?/, '')
-        .trim();
-      setError(msg || 'Authentication failed. Check your details and try again.');
+      if (err.message === 'UNVERIFIED_EMAIL') {
+        setNeedsVerification(true);
+        setError('Your email is not verified yet. Please click the verification link sent to your inbox.');
+      } else {
+        const msg = err.message
+          .replace('Firebase: ', '')
+          .replace(/\(auth\/.*\)\.?/, '')
+          .trim();
+        setError(msg || 'Authentication failed. Check your details and try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -85,8 +127,25 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3">
-            {error}
+          <div className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2.5 mb-3 space-y-2">
+            <div>{error}</div>
+            {needsVerification && (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resending}
+                className="inline-flex items-center gap-1.5 font-semibold text-red-800 underline hover:text-red-950"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${resending ? 'animate-spin' : ''}`} />
+                {resending ? 'Sending link...' : 'Resend Verification Email'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg px-3 py-2.5 mb-3 font-medium">
+            {successMsg}
           </div>
         )}
 
@@ -198,7 +257,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'signin' }) {
               ? 'Please wait...'
               : mode === 'signin'
               ? 'Sign In'
-              : 'Create Account & Continue'}
+              : 'Create Account & Send Verification'}
           </button>
         </form>
       </div>
