@@ -62,8 +62,8 @@ export async function registerFleetTruck(truckData) {
     ownerPhone: truckData.ownerPhone.trim(),
     ownerIdOrKra: truckData.ownerIdOrKra.trim().toUpperCase(),
     ownerMpesaPayout: (truckData.ownerMpesaPayout || truckData.ownerPhone).trim(),
-    contractModel: truckData.contractModel.trim(), // e.g. 'Per-Trip Fixed Charter' | 'Revenue Share (%)' | 'Monthly Retainer'
-    contractRate: truckData.contractRate.trim(), // e.g. 'KSh 12,500 / trip' or '75% of freight'
+    contractModel: truckData.contractModel.trim(),
+    contractRate: truckData.contractRate.trim(),
     contractNotes: (truckData.contractNotes || '').trim(),
     status: 'Active Contract',
     createdAt: serverTimestamp(),
@@ -116,6 +116,7 @@ export async function createTruckPool(poolData) {
     ownerName: poolData.ownerName || 'Company Fleet',
     driverId: poolData.driverId || null,
     driverAuthUid: poolData.driverAuthUid || null,
+    driverEmail: (poolData.driverEmail || '').trim().toLowerCase(),
     driverName: poolData.driverName || 'Unassigned',
     driverPhone: poolData.driverPhone || '',
     vehiclePlate: poolData.vehiclePlate || 'Pending Plate',
@@ -155,6 +156,7 @@ export async function assignDriverToPool(poolId, driver) {
   const updates = {
     driverId: driver.id,
     driverAuthUid: driver.authUid || null,
+    driverEmail: (driver.email || '').trim().toLowerCase(),
     driverName: driver.fullName,
     driverPhone: driver.phone,
   };
@@ -165,6 +167,15 @@ export async function assignDriverToPool(poolId, driver) {
     updates.vehicleType = driver.vehicleType;
   }
   await updateDoc(poolRef, updates);
+}
+
+export async function updatePoolTripStatus(poolId, tripStatus) {
+  if (!isFirebaseConfigured || !db || !poolId) return;
+  const poolRef = doc(db, 'truckPools', poolId);
+  await updateDoc(poolRef, {
+    tripStatus,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Atomic transaction prevents concurrent overbooking when two farmers pay simultaneously
