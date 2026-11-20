@@ -4,112 +4,87 @@ import {
   onSnapshot,
   updateDoc,
   arrayUnion,
-  setDoc,
-  getDocs,
+  addDoc,
+  getDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../config/firebase';
 
-const INITIAL_POOLS = [
-  {
-    id: 'pool-machakos-nairobi',
-    origin: 'Machakos Hub',
-    destination: 'Nairobi (Processor Gate)',
-    corridor: 'Machakos ➔ Nairobi',
-    produceType: 'Tomatoes (Grade A)',
-    vehicleType: '1-Ton Pickup (Canter Mini)',
-    maxCapacityKg: 1000,
-    currentWeightKg: 600,
-    baseTruckCost: 3000,
-    middlemanPricePerKg: 20,
-    processorPricePerKg: 45,
-    departureWindow: 'Today, 4:00 PM',
-    hubRoute: ['Kalama', 'Machakos Hub', 'Mlolongo', 'Nairobi Factory'],
-    bookings: [
-      { id: 'b1', farmerName: 'Kamau Mwangi', village: 'Kalama', weightKg: 200, channel: 'App', paid: true },
-      { id: 'b2', farmerName: 'Faith Ndinda', village: 'Mwala', weightKg: 200, channel: 'USSD', paid: true },
-      { id: 'b3', farmerName: 'Peter Mutua', village: 'Kathiani', weightKg: 200, channel: 'App', paid: true },
-    ],
-  },
-  {
-    id: 'pool-machakos-kisii',
-    origin: 'Machakos Hub',
-    destination: 'Kisii Agro-Processing Park',
-    corridor: 'Machakos ➔ Nairobi Hub ➔ Kisii',
-    produceType: 'French Beans & Avocados',
-    vehicleType: '3-Ton Refrigerated Lorry',
-    maxCapacityKg: 3000,
-    currentWeightKg: 2100,
-    baseTruckCost: 12000,
-    middlemanPricePerKg: 35,
-    processorPricePerKg: 75,
-    departureWindow: 'Tomorrow, 5:30 AM',
-    hubRoute: ['Machakos Hub', 'Nairobi Consolidation Hub', 'Narok', 'Kisii Plant'],
-    bookings: [
-      { id: 'b4', farmerName: 'Grace Wanjiku', village: 'Kangundo', weightKg: 900, channel: 'App', paid: true },
-      { id: 'b5', farmerName: 'David Njoroge', village: 'Matungulu', weightKg: 1200, channel: 'USSD', paid: true },
-    ],
-  },
-];
-
-let localPools = JSON.parse(JSON.stringify(INITIAL_POOLS));
-const localListeners = new Set();
-
-function notifyLocalListeners() {
-  localListeners.forEach((cb) => cb(JSON.parse(JSON.stringify(localPools))));
-}
-
-export async function seedInitialPoolsIfNeeded() {
-  if (!isFirebaseConfigured || !db) return;
-  const colRef = collection(db, 'truckPools');
-  const snap = await getDocs(colRef);
-  if (snap.empty) {
-    for (const pool of INITIAL_POOLS) {
-      await setDoc(doc(db, 'truckPools', pool.id), pool);
-    }
-  }
-}
-
 export function subscribeToPools(callback) {
-  if (isFirebaseConfigured && db) {
-    const colRef = collection(db, 'truckPools');
-    return onSnapshot(colRef, (snapshot) => {
-      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      callback(data.length ? data : INITIAL_POOLS);
-    });
+  if (!isFirebaseConfigured || !db) {
+    callback([]);
+    return () => {};
   }
 
-  localListeners.add(callback);
-  callback(JSON.parse(JSON.stringify(localPools)));
-  return () => localListeners.delete(callback);
+  const colRef = collection(db, 'truckPools');
+  return onSnapshot(colRef, (snapshot) => {
+    const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    callback(data);
+  });
+}
+
+export async function createTruckPool(poolData) {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase Firestore is not configured.');
+  }
+
+  const maxCapacityKg = Number(poolData.maxCapacityKg);
+  const baseTruckCost = Number(poolData.baseTruckCost);
+
+  const newPool = {
+    origin: poolData.origin.trim(),
+    destination: poolData.destination.trim(),
+    corridor: `${poolData.origin.trim()} ➔ ${poolData.destination.trim()}`,
+    produceType: poolData.produceType.trim(),
+    vehicleType: poolData.vehicleType.trim(),
+    maxCapacityKg,
+    currentWeightKg: 0,
+    baseTruckCost,
+    middlemanPricePerKg: Number(poolData.middlemanPricePerKg),
+    processorPricePerKg: Number(poolData.processorPricePerKg),
+    departureWindow: poolData.departureWindow.trim(),
+    hubRoute: [poolData.origin.trim(), poolData.destination.trim()],
+    bookings: [],
+    createdAt: serverTimestamp(),
+  };
+
+  const docRef = await addDoc(collection(db, 'truckPools'), newPool);
+  return docRef.id;
 }
 
 export async function joinTruckPool(poolId, booking) {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase Firestore is not configured.');
+  }
+
+  const poolRef = doc(db, 'truckPools', poolId);
+  const poolSnap = await getDoc(poolRef);
+
+  if (!poolSnap.exists()) {
+    throw new Error('Selected truck pool no longer exists.');
+  }
+
+  const poolData = poolSnap.data();
+  const remainingKg = Math.max(poolData.maxCapacityKg - poolData.currentWeightKg, 0);
+  const acceptedWeight = Math.min(Number(booking.weightKg), remainingKg);
+
+  if (acceptedWeight <= 0) {
+    throw new Error('This truck pool is already at 100% capacity.');
+  }
+
   const newBooking = {
     id: `bk-${Date.now()}`,
-    ...booking,
+    farmerName: booking.farmerName.trim(),
+    village: booking.village.trim(),
+    phone: booking.phone ? booking.phone.trim() : '',
+    weightKg: acceptedWeight,
+    channel: booking.channel,
     paid: true,
     timestamp: new Date().toISOString(),
   };
 
-  if (isFirebaseConfigured && db) {
-    const poolRef = doc(db, 'truckPools', poolId);
-    const target = localPools.find((p) => p.id === poolId);
-    const currentKg = target ? target.currentWeightKg : 0;
-    await updateDoc(poolRef, {
-      currentWeightKg: currentKg + Number(booking.weightKg),
-      bookings: arrayUnion(newBooking),
-    });
-    return;
-  }
-
-  localPools = localPools.map((pool) => {
-    if (pool.id !== poolId) return pool;
-    const updatedWeight = Math.min(pool.currentWeightKg + Number(booking.weightKg), pool.maxCapacityKg);
-    return {
-      ...pool,
-      currentWeightKg: updatedWeight,
-      bookings: [...pool.bookings, newBooking],
-    };
+  await updateDoc(poolRef, {
+    currentWeightKg: poolData.currentWeightKg + acceptedWeight,
+    bookings: arrayUnion(newBooking),
   });
-  notifyLocalListeners();
 }

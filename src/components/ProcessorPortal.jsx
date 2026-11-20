@@ -1,74 +1,101 @@
 import React from 'react';
-import { Factory, CheckCircle, TrendingUp } from 'lucide-react';
+import { Factory, CheckCircle2, PackageCheck } from 'lucide-react';
 
 export default function ProcessorPortal({ pools }) {
-  const totalAggregatedKg = pools.reduce((sum, p) => sum + p.currentWeightKg, 0);
-  const totalFarmers = pools.reduce((sum, p) => sum + p.bookings.length, 0);
+  const allManifests = pools.flatMap((pool) =>
+    (pool.bookings || []).map((b) => ({
+      ...b,
+      corridor: pool.corridor,
+      produceType: pool.produceType,
+      destination: pool.destination,
+      processorPricePerKg: pool.processorPricePerKg,
+      departureWindow: pool.departureWindow,
+    }))
+  );
+
+  const totalIncomingKg = allManifests.reduce((sum, item) => sum + (Number(item.weightKg) || 0), 0);
+  const totalGateValue = allManifests.reduce(
+    (sum, item) => sum + (Number(item.weightKg) || 0) * (Number(item.processorPricePerKg) || 0),
+    0
+  );
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div>
-          <div className="flex items-center gap-2 text-amber-700 font-semibold text-xs uppercase tracking-wider">
-            <Factory className="w-4 h-4" /> B2B Off-Taker & Factory View
+          <div className="flex items-center gap-2">
+            <Factory className="w-5 h-5 text-amber-600" />
+            <h2 className="text-lg font-bold text-slate-900">
+              Agro-Processor Off-Taker Gate Manifest
+            </h2>
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mt-1">
-            Inbound Aggregated Supply Manifest
-          </h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Live incoming consolidated truckloads verified at origin hubs for direct gate payout.
+          </p>
         </div>
+
         <div className="flex gap-4">
-          <div className="bg-slate-50 px-4 py-2 rounded-lg border border-slate-200">
-            <span className="text-xs text-slate-500 block">Verified Inbound Volume</span>
-            <span className="text-lg font-bold text-slate-900">
-              {totalAggregatedKg.toLocaleString()} kg
-            </span>
+          <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-right">
+            <div className="text-[11px] uppercase font-bold text-slate-500">Total Incoming Load</div>
+            <div className="text-base font-bold text-slate-900">
+              {totalIncomingKg.toLocaleString()} kg
+            </div>
           </div>
-          <div className="bg-green-50 px-4 py-2 rounded-lg border border-green-200">
-            <span className="text-xs text-green-700 block">Smallholders Connected</span>
-            <span className="text-lg font-bold text-green-800">{totalFarmers} Farmers</span>
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-right">
+            <div className="text-[11px] uppercase font-bold text-emerald-700">Direct Payout Value</div>
+            <div className="text-base font-bold text-emerald-900">
+              KSh {totalGateValue.toLocaleString()}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
-              <th className="py-3 px-3">Corridor</th>
-              <th className="py-3 px-3">Commodity</th>
-              <th className="py-3 px-3">Pooled Volume</th>
-              <th className="py-3 px-3">Factory Gate Price</th>
-              <th className="py-3 px-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {pools.map((p) => (
-              <tr key={p.id}>
-                <td className="py-3 px-3 font-medium text-slate-900">{p.corridor}</td>
-                <td className="py-3 px-3 text-slate-700">{p.produceType}</td>
-                <td className="py-3 px-3 font-semibold text-green-700">
-                  {p.currentWeightKg} / {p.maxCapacityKg} kg
-                </td>
-                <td className="py-3 px-3 text-slate-700">KSh {p.processorPricePerKg}/kg</td>
-                <td className="py-3 px-3">
-                  <span className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-                    <CheckCircle className="w-3 h-3" /> Quality Graded at Hub
-                  </span>
-                </td>
+      {allManifests.length === 0 ? (
+        <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300 text-sm text-slate-500">
+          <PackageCheck className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+          No incoming farmer consignments recorded yet. Book a load on the Farmer tab to populate
+          the processor manifest.
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-xs uppercase text-slate-500 bg-slate-50">
+                <th className="py-3 px-4">Farmer & Origin</th>
+                <th className="py-3 px-4">Corridor / Destination</th>
+                <th className="py-3 px-4">Commodity</th>
+                <th className="py-3 px-4">Net Weight</th>
+                <th className="py-3 px-4">Gate Payout</th>
+                <th className="py-3 px-4">Channel & Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3 text-xs text-amber-900">
-        <TrendingUp className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-        <div>
-          <strong>Revenue Stream Active:</strong> Processors pay a monthly SaaS subscription + 7.5%
-          logistics facilitation fee for guaranteed, pre-graded full-truck deliveries directly to
-          factory receiving bays.
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {allManifests.map((item) => {
+                const payout = (Number(item.weightKg) || 0) * (Number(item.processorPricePerKg) || 0);
+                return (
+                  <tr key={item.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-4">
+                      <div className="font-semibold text-slate-900">{item.farmerName}</div>
+                      <div className="text-xs text-slate-500">{item.village}</div>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-700">{item.corridor}</td>
+                    <td className="py-3 px-4 text-xs font-medium text-slate-800">{item.produceType}</td>
+                    <td className="py-3 px-4 font-semibold text-slate-900">{item.weightKg} kg</td>
+                    <td className="py-3 px-4 font-bold text-emerald-700">
+                      KSh {payout.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center gap-1 text-xs font-medium bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full">
+                        <CheckCircle2 className="w-3 h-3" /> {item.channel}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      </div>
+      )}
     </div>
   );
 }
