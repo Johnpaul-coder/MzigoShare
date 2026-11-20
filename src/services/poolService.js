@@ -35,6 +35,7 @@ export async function createTruckPool(poolData) {
     origin: poolData.origin.trim(),
     destination: poolData.destination.trim(),
     corridor: `${poolData.origin.trim()} ➔ ${poolData.destination.trim()}`,
+    distanceKm: Number(poolData.distanceKm) || 0,
     produceType: poolData.produceType.trim(),
     vehicleType: poolData.vehicleType.trim(),
     maxCapacityKg,
@@ -45,6 +46,7 @@ export async function createTruckPool(poolData) {
     departureWindow: poolData.departureWindow.trim(),
     hubRoute: [poolData.origin.trim(), poolData.destination.trim()],
     bookings: [],
+    createdBy: poolData.createdBy || null,
     createdAt: serverTimestamp(),
   };
 
@@ -74,12 +76,16 @@ export async function joinTruckPool(poolId, booking) {
 
   const newBooking = {
     id: `bk-${Date.now()}`,
+    uid: booking.uid || null,
     farmerName: booking.farmerName.trim(),
     village: booking.village.trim(),
     phone: booking.phone ? booking.phone.trim() : '',
     weightKg: acceptedWeight,
     channel: booking.channel,
     paid: true,
+    mpesaReceipt: booking.mpesaReceipt || `USSD-${Date.now().toString().slice(-6)}`,
+    amountPaid: Number(booking.amountPaid) || 0,
+    escrowStatus: booking.escrowStatus || 'Held in Escrow',
     timestamp: new Date().toISOString(),
   };
 

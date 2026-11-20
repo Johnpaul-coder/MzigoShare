@@ -7,7 +7,7 @@ import UssdSimulator from './components/UssdSimulator';
 import HubSpokeMap from './components/HubSpokeMap';
 import ProcessorPortal from './components/ProcessorPortal';
 import CreatePoolModal from './components/CreatePoolModal';
-import AuthModal from './components/AuthModal';
+import LandingAuthView from './components/LandingAuthView';
 import {
   subscribeToPools,
   createTruckPool,
@@ -22,12 +22,12 @@ export default function App() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const [userProfile, setUserProfile] = useState(null);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('signin');
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
     const unsubAuth = subscribeToAuth((profile) => {
       setUserProfile(profile);
+      setAuthReady(true);
     });
     const unsubPools = subscribeToPools((updatedPools) => {
       setPools(updatedPools);
@@ -42,20 +42,20 @@ export default function App() {
     };
   }, []);
 
+  if (!authReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-sm font-semibold text-slate-600">
+        Loading MzigoShare...
+      </div>
+    );
+  }
+
+  // Show full Uber-style Landing & Auth view when signed out
+  if (!userProfile) {
+    return <LandingAuthView pools={pools} />;
+  }
+
   const selectedPool = pools.find((p) => p.id === selectedPoolId) || pools[0] || null;
-
-  const openAuth = (mode = 'signin') => {
-    setAuthMode(mode);
-    setAuthModalOpen(true);
-  };
-
-  const handleOpenCreatePool = () => {
-    if (!userProfile) {
-      openAuth('signin');
-      return;
-    }
-    setIsCreateOpen(true);
-  };
 
   const handleCreatePool = async (poolData) => {
     const newId = await createTruckPool({
@@ -71,7 +71,6 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         userProfile={userProfile}
-        onOpenAuth={openAuth}
         onLogout={logoutUser}
       />
 
@@ -81,7 +80,7 @@ export default function App() {
             <div className="lg:col-span-7 space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">
+                  <h1 className="text-2xl font-extrabold text-slate-900">
                     Active Shared Produce Pools
                   </h1>
                   <p className="text-sm text-slate-600 mt-1">
@@ -90,8 +89,8 @@ export default function App() {
                   </p>
                 </div>
                 <button
-                  onClick={handleOpenCreatePool}
-                  className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-lg text-sm shadow-sm transition"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-sm transition"
                 >
                   <PlusCircle className="w-4 h-4" />
                   New Truck Pool
@@ -99,18 +98,18 @@ export default function App() {
               </div>
 
               {pools.length === 0 ? (
-                <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-10 text-center space-y-3">
+                <div className="bg-white rounded-2xl border-2 border-dashed border-slate-300 p-10 text-center space-y-3">
                   <Truck className="w-10 h-10 text-slate-400 mx-auto" />
                   <h3 className="text-base font-bold text-slate-800">
                     No Active Truck Pools in Firestore
                   </h3>
                   <p className="text-xs text-slate-500 max-w-md mx-auto">
-                    Sign in and click <strong>New Truck Pool</strong> to publish your first live
-                    agricultural corridor and begin pooling farmer harvests.
+                    Click <strong>New Truck Pool</strong> to publish your first live agricultural
+                    corridor and begin pooling farmer harvests.
                   </p>
                   <button
-                    onClick={handleOpenCreatePool}
-                    className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg text-xs transition"
+                    onClick={() => setIsCreateOpen(true)}
+                    className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition"
                   >
                     <PlusCircle className="w-4 h-4" />
                     Launch First Truck Pool
@@ -135,7 +134,7 @@ export default function App() {
                 <BookingForm
                   pool={selectedPool}
                   userProfile={userProfile}
-                  onOpenAuth={openAuth}
+                  onOpenAuth={() => {}}
                   onBook={joinTruckPool}
                 />
               )}
@@ -158,12 +157,6 @@ export default function App() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreate={handleCreatePool}
-      />
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        initialMode={authMode}
       />
     </div>
   );
