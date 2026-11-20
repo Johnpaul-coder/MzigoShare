@@ -23,7 +23,6 @@ export default function LandingAuthView({ pools }) {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [village, setVillage] = useState('');
-  const [role, setRole] = useState('farmer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -65,8 +64,7 @@ export default function LandingAuthView({ pools }) {
     setLoading(true);
     try {
       if (mode === 'signup') {
-        const safeRole = role === 'driver' ? 'driver' : 'farmer';
-        await signUpUser({ fullName, phone, village, role: safeRole, email, password });
+        await signUpUser({ fullName, phone, village, role: 'farmer', email, password });
         setFullName('');
         setPhone('');
         setVillage('');
@@ -122,7 +120,7 @@ export default function LandingAuthView({ pools }) {
                   : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
               }`}
             >
-              Sign Up
+              Shipper Sign Up
             </button>
           </div>
         </div>
@@ -172,12 +170,12 @@ export default function LandingAuthView({ pools }) {
             <div className="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200">
               <div className="mb-5">
                 <h2 className="text-2xl font-extrabold text-slate-900">
-                  {mode === 'signin' ? 'Welcome back' : 'Get started with MzigoShare'}
+                  {mode === 'signin' ? 'Welcome back' : 'Create Shipper Account'}
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   {mode === 'signin'
-                    ? 'Sign in to book truck space, track shipments, or manage trips.'
-                    : 'Create your free account to ship produce or register as a fleet driver.'}
+                    ? 'Farmers, vetted fleet drivers, and dispatch admins sign in below.'
+                    : 'Register as a farmer or produce shipper. Fleet drivers are onboarded by Dispatch.'}
                 </p>
               </div>
 
@@ -202,7 +200,7 @@ export default function LandingAuthView({ pools }) {
                       : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
-                  Create Account
+                  Shipper Sign Up
                 </button>
               </div>
 
@@ -232,20 +230,6 @@ export default function LandingAuthView({ pools }) {
               <form onSubmit={handleSubmit} className="space-y-3.5 text-sm">
                 {mode === 'signup' && (
                   <>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        I am joining as a
-                      </label>
-                      <select
-                        value={role}
-                        onChange={(e) => setRole(e.target.value)}
-                        className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
-                      >
-                        <option value="farmer">Farmer / Produce Shipper</option>
-                        <option value="driver">Commercial Truck Driver</option>
-                      </select>
-                    </div>
-
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
                         Full Name
@@ -342,7 +326,7 @@ export default function LandingAuthView({ pools }) {
                     ? 'Please wait...'
                     : mode === 'signin'
                     ? 'Sign In'
-                    : 'Create Account & Verify Email'}
+                    : 'Create Shipper Account'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </form>
@@ -357,7 +341,7 @@ export default function LandingAuthView({ pools }) {
             How Shared Farm-to-Market Logistics Works
           </h2>
           <p className="text-sm text-slate-600 mt-1">
-            Accessible via smartphone web or offline USSD (*384*55#) for rural feature phones.
+            Vetted fleet trucks, tagged produce custody, and escrow-protected market deliveries.
           </p>
         </div>
 
@@ -368,7 +352,7 @@ export default function LandingAuthView({ pools }) {
             </div>
             <h3 className="font-bold text-base text-slate-900">1. List Produce & Reserve Space</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Pick an active route, pay only for your exact kilograms via M-Pesa STK Push, and get
+              Pick an active route, pay only for your exact kilograms via M-Pesa escrow, and get
               an instant tracking tag.
             </p>
           </div>
@@ -379,7 +363,7 @@ export default function LandingAuthView({ pools }) {
             </div>
             <h3 className="font-bold text-base text-slate-900">2. Tagged Pickup & Live Map</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Assigned drivers follow the live route map, verify your crate tag at pickup, and
+              Company-vetted drivers follow the live route map, verify your crate tag at pickup, and
               consolidate loads along the highway.
             </p>
           </div>
@@ -391,7 +375,7 @@ export default function LandingAuthView({ pools }) {
             <h3 className="font-bold text-base text-slate-900">3. Photo Proof & Escrow Release</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
               Upon arrival at the destination gate, the driver uploads a photo confirmation to
-              release M-Pesa escrow payouts.
+              verify delivery and release M-Pesa escrow payouts.
             </p>
           </div>
         </div>

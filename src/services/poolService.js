@@ -23,6 +23,19 @@ export function subscribeToPools(callback) {
   });
 }
 
+export function subscribeToFleetTrucks(callback) {
+  if (!isFirebaseConfigured || !db) {
+    callback([]);
+    return () => {};
+  }
+
+  const colRef = collection(db, 'trucks');
+  return onSnapshot(colRef, (snapshot) => {
+    const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+    callback(data);
+  });
+}
+
 export function subscribeToDrivers(callback) {
   if (!isFirebaseConfigured || !db) {
     callback([]);
@@ -36,19 +49,47 @@ export function subscribeToDrivers(callback) {
   });
 }
 
+export async function registerFleetTruck(truckData) {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error('Firebase Firestore is not configured.');
+  }
+
+  const newTruck = {
+    vehiclePlate: truckData.vehiclePlate.trim().toUpperCase(),
+    vehicleType: truckData.vehicleType.trim(),
+    maxCapacityKg: Number(truckData.maxCapacityKg) || 1000,
+    ownerName: truckData.ownerName.trim(),
+    ownerPhone: truckData.ownerPhone.trim(),
+    ownerIdOrKra: truckData.ownerIdOrKra.trim().toUpperCase(),
+    ownerMpesaPayout: (truckData.ownerMpesaPayout || truckData.ownerPhone).trim(),
+    contractModel: truckData.contractModel.trim(), // e.g. 'Per-Trip Fixed Charter' | 'Revenue Share (%)' | 'Monthly Retainer'
+    contractRate: truckData.contractRate.trim(), // e.g. 'KSh 12,500 / trip' or '75% of freight'
+    contractNotes: (truckData.contractNotes || '').trim(),
+    status: 'Active Contract',
+    createdAt: serverTimestamp(),
+  };
+
+  const docRef = await addDoc(collection(db, 'trucks'), newTruck);
+  return docRef.id;
+}
+
 export async function registerDriver(driverData) {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase Firestore is not configured.');
   }
 
   const newDriver = {
+    authUid: driverData.authUid || null,
     fullName: driverData.fullName.trim(),
     phone: driverData.phone.trim(),
+    email: (driverData.email || '').trim().toLowerCase(),
     licenseNo: driverData.licenseNo.trim().toUpperCase(),
-    vehiclePlate: driverData.vehiclePlate.trim().toUpperCase(),
-    vehicleType: driverData.vehicleType.trim(),
+    nationalId: (driverData.nationalId || '').trim(),
+    goodConductRef: (driverData.goodConductRef || '').trim().toUpperCase(),
+    vehiclePlate: (driverData.vehiclePlate || '').trim().toUpperCase(),
+    vehicleType: (driverData.vehicleType || '').trim(),
     maxCapacityKg: Number(driverData.maxCapacityKg) || 1000,
-    status: 'Available',
+    status: 'Vetted & Active',
     createdAt: serverTimestamp(),
   };
 
@@ -71,7 +112,10 @@ export async function createTruckPool(poolData) {
     distanceKm: Number(poolData.distanceKm) || 0,
     produceType: poolData.produceType.trim(),
     vehicleType: poolData.vehicleType.trim(),
+    truckId: poolData.truckId || null,
+    ownerName: poolData.ownerName || 'Company Fleet',
     driverId: poolData.driverId || null,
+    driverAuthUid: poolData.driverAuthUid || null,
     driverName: poolData.driverName || 'Unassigned',
     driverPhone: poolData.driverPhone || '',
     vehiclePlate: poolData.vehiclePlate || 'Pending Plate',
@@ -92,16 +136,35 @@ export async function createTruckPool(poolData) {
   return docRef.id;
 }
 
-export async function assignDriverToPool(poolId, driver) {
+export async function assignTruckToPool(poolId, truck) {
   if (!isFirebaseConfigured || !db) return;
   const poolRef = doc(db, 'truckPools', poolId);
   await updateDoc(poolRef, {
+    truckId: truck.id,
+    vehiclePlate: truck.vehiclePlate,
+    vehicleType: truck.vehicleType,
+    maxCapacityKg: Number(truck.maxCapacityKg) || 1000,
+    ownerName: truck.ownerName,
+    ownerPhone: truck.ownerPhone,
+  });
+}
+
+export async function assignDriverToPool(poolId, driver) {
+  if (!isFirebaseConfigured || !db) return;
+  const poolRef = doc(db, 'truckPools', poolId);
+  const updates = {
     driverId: driver.id,
+    driverAuthUid: driver.authUid || null,
     driverName: driver.fullName,
     driverPhone: driver.phone,
-    vehiclePlate: driver.vehiclePlate,
-    vehicleType: driver.vehicleType,
-  });
+  };
+  if (driver.vehiclePlate) {
+    updates.vehiclePlate = driver.vehiclePlate;
+  }
+  if (driver.vehicleType) {
+    updates.vehicleType = driver.vehicleType;
+  }
+  await updateDoc(poolRef, updates);
 }
 
 // Atomic transaction prevents concurrent overbooking when two farmers pay simultaneously
