@@ -83,6 +83,18 @@ export async function createDriverAccountByAdmin({
     await setDoc(doc(db, 'users', cred.user.uid), profile);
     await signOut(secondaryAuth);
     return profile;
+  } catch (err) {
+    if (err.code === 'auth/email-already-in-use') {
+      throw new Error(
+        `The email ${email.trim().toLowerCase()} already exists in Firebase Auth. Delete the old test account in Firebase Console -> Authentication -> Users, or use a new driver email.`
+      );
+    }
+    if (err.code === 'permission-denied' || (err.message || '').includes('permissions')) {
+      throw new Error(
+        'Firestore permission denied: publish the updated firestore.rules allowing isAdmin() to create users/{userId}.'
+      );
+    }
+    throw new Error(err.message || 'Failed to provision driver account.');
   } finally {
     await deleteApp(secondaryApp);
   }

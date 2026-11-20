@@ -143,11 +143,7 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
         maxCapacityKg: 3000,
       });
     } catch (err) {
-      const msg = (err.message || '')
-        .replace('Firebase: ', '')
-        .replace(/\(auth\/.*\)\.?/, '')
-        .trim();
-      setDriverErr(msg || 'Could not provision driver account.');
+      setDriverErr(err.message || 'Could not provision driver account.');
     } finally {
       setSavingDriver(false);
     }
