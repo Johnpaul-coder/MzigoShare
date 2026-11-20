@@ -178,3 +178,17 @@ export async function updateBookingDelivery(poolId, bookingId, updates) {
     tripStatus,
   });
 }
+
+// Broadcast real-time driver GPS coordinates to Firestore
+export async function updatePoolLiveLocation(poolId, coords) {
+  if (!isFirebaseConfigured || !db || !poolId) return;
+  const poolRef = doc(db, 'truckPools', poolId);
+  await updateDoc(poolRef, {
+    liveLocation: {
+      lat: Number(coords.lat),
+      lng: Number(coords.lng),
+      speedKmh: coords.speedKmh ? Math.round(coords.speedKmh * 3.6) : 0,
+      updatedAt: new Date().toISOString(),
+    },
+  });
+}

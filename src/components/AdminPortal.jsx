@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { registerDriver, assignDriverToPool } from '../services/poolService';
+import HubSpokeMap from './HubSpokeMap';
 
 export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
   const [adminTab, setAdminTab] = useState('database');
@@ -392,65 +393,74 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
       )}
 
       {adminTab === 'tracker' && (
-        <div className="grid md:grid-cols-2 gap-5">
-          {pools.map((pool) => {
-            const deliveredCount = (pool.bookings || []).filter(
-              (b) => b.deliveryStatus === 'Delivered'
-            ).length;
-            const totalBookings = (pool.bookings || []).length;
+        <div className="space-y-5">
+          <HubSpokeMap pools={pools} />
 
-            return (
-              <div
-                key={pool.id}
-                className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                      <Truck className="w-3.5 h-3.5" /> {pool.tripStatus || 'Awaiting Cargo'}
-                    </span>
-                    <h3 className="font-extrabold text-base text-slate-900 mt-2">
-                      {pool.corridor}
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Driver: <strong>{pool.driverName}</strong> • Plate:{' '}
-                      <strong>{pool.vehiclePlate}</strong> ({pool.distanceKm} km)
-                    </p>
+          <div className="grid md:grid-cols-2 gap-5">
+            {pools.map((pool) => {
+              const deliveredCount = (pool.bookings || []).filter(
+                (b) => b.deliveryStatus === 'Delivered'
+              ).length;
+              const totalBookings = (pool.bookings || []).length;
+
+              return (
+                <div
+                  key={pool.id}
+                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                        <Truck className="w-3.5 h-3.5" /> {pool.tripStatus || 'Awaiting Cargo'}
+                      </span>
+                      <h3 className="font-extrabold text-base text-slate-900 mt-2">
+                        {pool.corridor}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Driver: <strong>{pool.driverName}</strong> • Plate:{' '}
+                        <strong>{pool.vehiclePlate}</strong> ({pool.distanceKm} km)
+                      </p>
+                    </div>
+                    <div className="text-right text-xs">
+                      <div className="font-bold text-slate-900">
+                        {deliveredCount}/{totalBookings} Drop-offs
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {pool.currentWeightKg}/{pool.maxCapacityKg} kg
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right text-xs">
-                    <div className="font-bold text-slate-900">
-                      {deliveredCount}/{totalBookings} Drop-offs
-                    </div>
-                    <div className="text-[11px] text-slate-500">
-                      {pool.currentWeightKg}/{pool.maxCapacityKg} kg
-                    </div>
+
+                  <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
+                    {['Awaiting Cargo', 'Loading Pickups', 'In Transit', 'Delivered'].map(
+                      (stage, idx) => {
+                        const stages = [
+                          'Awaiting Cargo',
+                          'Loading Pickups',
+                          'In Transit',
+                          'Delivered',
+                        ];
+                        const activeIdx = stages.indexOf(pool.tripStatus || 'Awaiting Cargo');
+                        const isDone = idx <= activeIdx;
+                        return (
+                          <div
+                            key={stage}
+                            className={`py-2 px-1 rounded-lg border ${
+                              isDone
+                                ? 'bg-emerald-600 text-white border-emerald-600'
+                                : 'bg-slate-50 text-slate-400 border-slate-200'
+                            }`}
+                          >
+                            {stage}
+                          </div>
+                        );
+                      }
+                    )}
                   </div>
                 </div>
-
-                <div className="grid grid-cols-4 gap-1.5 text-center text-[10px] font-bold">
-                  {['Awaiting Cargo', 'Loading Pickups', 'In Transit', 'Delivered'].map(
-                    (stage, idx) => {
-                      const stages = ['Awaiting Cargo', 'Loading Pickups', 'In Transit', 'Delivered'];
-                      const activeIdx = stages.indexOf(pool.tripStatus || 'Awaiting Cargo');
-                      const isDone = idx <= activeIdx;
-                      return (
-                        <div
-                          key={stage}
-                          className={`py-2 px-1 rounded-lg border ${
-                            isDone
-                              ? 'bg-emerald-600 text-white border-emerald-600'
-                              : 'bg-slate-50 text-slate-400 border-slate-200'
-                          }`}
-                        >
-                          {stage}
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
 

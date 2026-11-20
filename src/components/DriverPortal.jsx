@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Tag,
   Camera,
@@ -6,17 +6,70 @@ import {
   Navigation,
   MapPin,
   PackageCheck,
+  Radio,
 } from 'lucide-react';
 import HubSpokeMap from './HubSpokeMap';
-import { updateBookingDelivery } from '../services/poolService';
+import { updateBookingDelivery, updatePoolLiveLocation } from '../services/poolService';
 
 export default function DriverPortal({ pools, userProfile }) {
   const [selectedPoolId, setSelectedPoolId] = useState(pools[0]?.id || null);
   const [tagInputs, setTagInputs] = useState({});
   const [dropoffNotes, setDropoffNotes] = useState({});
   const [uploadingId, setUploadingId] = useState(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState('');
+  const watchIdRef = useRef(null);
 
   const activePool = pools.find((p) => p.id === selectedPoolId) || pools[0] || null;
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+    };
+  }, []);
+
+  const toggleLiveGps = () => {
+    if (!activePool) return;
+
+    if (isBroadcasting) {
+      if (watchIdRef.current !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      setIsBroadcasting(false);
+      setGpsStatus('GPS broadcast paused.');
+      return;
+    }
+
+    setIsBroadcasting(true);
+    setGpsStatus('Acquiring GPS signal...');
+
+    if ('geolocation' in navigator) {
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        async (pos) => {
+          const { latitude, longitude, speed } = pos.coords;
+          await updatePoolLiveLocation(activePool.id, {
+            lat: latitude,
+            lng: longitude,
+            speedKmh: speed || 15,
+          });
+          setGpsStatus(`Live GPS active (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+        },
+        async () => {
+          const simLat = -1.4485 + (Math.random() - 0.5) * 0.01;
+          const simLng = 37.095 + (Math.random() - 0.5) * 0.01;
+          await updatePoolLiveLocation(activePool.id, {
+            lat: simLat,
+            lng: simLng,
+            speedKmh: 16.5,
+          });
+          setGpsStatus(`Simulated Highway GPS active (${simLat.toFixed(4)}, ${simLng.toFixed(4)})`);
+        },
+        { enableHighAccuracy: true, maximumAge: 5000 }
+      );
+    }
+  };
 
   const handlePhotoUpload = (poolId, bookingId, file) => {
     if (!file) return;
@@ -61,23 +114,41 @@ export default function DriverPortal({ pools, userProfile }) {
             Welcome, {userProfile?.fullName || 'Fleet Driver'}
           </h1>
           <p className="text-xs text-slate-300 mt-1">
-            Follow your assigned route map, tag picked-up crates, and capture a drop-off photo at destination.
+            Broadcast live truck GPS, tag picked-up crates, and capture a drop-off photo at destination.
           </p>
+          {gpsStatus && (
+            <p className="text-[11px] font-mono text-emerald-300 mt-1.5">{gpsStatus}</p>
+          )}
         </div>
 
-        {pools.length > 0 && (
-          <select
-            value={activePool?.id || ''}
-            onChange={(e) => setSelectedPoolId(e.target.value)}
-            className="rounded-xl bg-white text-slate-900 px-4 py-2.5 text-xs font-extrabold"
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={toggleLiveGps}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold transition ${
+              isBroadcasting
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
+            }`}
           >
-            {pools.map((p) => (
-              <option key={p.id} value={p.id}>
-                Route: {p.corridor} ({p.vehiclePlate || 'Assigned'})
-              </option>
-            ))}
-          </select>
-        )}
+            <Radio className={`w-4 h-4 ${isBroadcasting ? 'animate-ping' : ''}`} />
+            {isBroadcasting ? 'Stop Live GPS' : 'Broadcast Live GPS'}
+          </button>
+
+          {pools.length > 0 && (
+            <select
+              value={activePool?.id || ''}
+              onChange={(e) => setSelectedPoolId(e.target.value)}
+              className="rounded-xl bg-white text-slate-900 px-4 py-2.5 text-xs font-extrabold"
+            >
+              {pools.map((p) => (
+                <option key={p.id} value={p.id}>
+                  Route: {p.corridor} ({p.vehiclePlate || 'Assigned'})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       <HubSpokeMap pools={activePool ? [activePool] : []} />
