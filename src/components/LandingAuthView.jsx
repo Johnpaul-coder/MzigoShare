@@ -19,7 +19,7 @@ import { signInUser, signUpUser, resendVerificationEmail } from '../services/aut
 import { isFirebaseConfigured } from '../config/firebase';
 
 export default function LandingAuthView({ pools }) {
-  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [mode, setMode] = useState('signin');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [village, setVillage] = useState('');
@@ -95,9 +95,8 @@ export default function LandingAuthView({ pools }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Top Clean Header */}
       <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 py-3.5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
           <Logo size="md" />
           <div className="flex items-center gap-3">
             <span className="hidden md:inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full">
@@ -128,10 +127,8 @@ export default function LandingAuthView({ pools }) {
         </div>
       </header>
 
-      {/* Main Split Hero Section (Uber Eats Style) */}
       <section className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16 grid lg:grid-cols-12 gap-10 items-center">
-          {/* Left 7 Cols: Value Proposition & Live Corridor Stats */}
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center gap-2 bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-semibold px-3.5 py-1.5 rounded-full">
               <Sprout className="w-4 h-4" />
@@ -145,11 +142,10 @@ export default function LandingAuthView({ pools }) {
 
             <p className="text-base sm:text-lg text-slate-300 max-w-xl leading-relaxed">
               Pool your sub-tonnage crates with neighboring farmers along the same highway corridor.
-              Cut freight costs by up to <strong className="text-white">80%</strong> and deliver
-              straight to verified agro-processor gates.
+              Cut freight costs by up to <strong className="text-white">80%</strong> and track every
+              tagged load with photo proof of delivery.
             </p>
 
-            {/* Key Value Pillars */}
             <div className="grid sm:grid-cols-3 gap-4 pt-2">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <TrendingUp className="w-5 h-5 text-amber-400 mb-2" />
@@ -164,14 +160,13 @@ export default function LandingAuthView({ pools }) {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <Truck className="w-5 h-5 text-sky-400 mb-2" />
                 <div className="text-xl font-extrabold text-white">
-                  {pools.length} Live {pools.length === 1 ? 'Pool' : 'Pools'}
+                  {pools.length} Live {pools.length === 1 ? 'Route' : 'Routes'}
                 </div>
                 <div className="text-xs text-slate-300 mt-0.5">Active on Firestore right now</div>
               </div>
             </div>
           </div>
 
-          {/* Right 5 Cols: Spacious Auth Card */}
           <div className="lg:col-span-5">
             <div className="bg-white text-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200">
               <div className="mb-5">
@@ -180,12 +175,11 @@ export default function LandingAuthView({ pools }) {
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
                   {mode === 'signin'
-                    ? 'Sign in to book truck space, manage hubs, or view processor manifests.'
+                    ? 'Sign in to access your User, Driver, or Admin Dispatch portal.'
                     : 'Create your account to join shared agricultural corridors.'}
                 </p>
               </div>
 
-              {/* Clean Pill Switcher */}
               <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl mb-5 text-xs font-bold">
                 <button
                   type="button"
@@ -246,9 +240,9 @@ export default function LandingAuthView({ pools }) {
                         onChange={(e) => setRole(e.target.value)}
                         className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
                       >
-                        <option value="farmer">Smallholder Farmer (Book Cargo Slots)</option>
-                        <option value="hub_agent">Hub Agent / Transporter (Launch Pools)</option>
-                        <option value="processor">Agro-Processor Off-Taker (Gate Manifests)</option>
+                        <option value="farmer">User / Farmer (List Produce & Track)</option>
+                        <option value="driver">Truck Driver (Map, Goods Tag & Drop-Off Photo)</option>
+                        <option value="admin">Admin Dispatch (Register Drivers, Routes & Fleet)</option>
                       </select>
                     </div>
 
@@ -282,7 +276,7 @@ export default function LandingAuthView({ pools }) {
                             placeholder="07XX XXX XXX"
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 pl-10 pr-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
+                            className="w-full rounded-xl border border-slate-300 pl-10 pr-3.5 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
                           />
                         </div>
                       </div>
@@ -298,7 +292,7 @@ export default function LandingAuthView({ pools }) {
                             placeholder="e.g., Machakos"
                             value={village}
                             onChange={(e) => setVillage(e.target.value)}
-                            className="w-full rounded-xl border border-slate-300 pl-10 pr-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
+                            className="w-full rounded-xl border border-slate-300 pl-10 pr-3.5 py-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600"
                           />
                         </div>
                       </div>
@@ -347,7 +341,7 @@ export default function LandingAuthView({ pools }) {
                   {loading
                     ? 'Please wait...'
                     : mode === 'signin'
-                    ? 'Continue to Dashboard'
+                    ? 'Continue to Portal'
                     : 'Create Account & Verify Email'}
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -357,7 +351,6 @@ export default function LandingAuthView({ pools }) {
         </div>
       </section>
 
-      {/* Bottom 3-Step Visual Showcase */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <h2 className="text-2xl font-extrabold text-slate-900">
@@ -373,10 +366,10 @@ export default function LandingAuthView({ pools }) {
             <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4">
               <Sprout className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-base text-slate-900">1. Reserve Sub-Tonnage Space</h3>
+            <h3 className="font-bold text-base text-slate-900">1. List Produce & Reserve Space</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Book only the exact kilograms you harvested (e.g., 150 kg or 300 kg) instead of paying
-              for an entire empty truck.
+              Pick an active route, pay only for your exact kilograms via M-Pesa STK Push, and get
+              an instant tracking tag.
             </p>
           </div>
 
@@ -384,10 +377,10 @@ export default function LandingAuthView({ pools }) {
             <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-4">
               <Warehouse className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-base text-slate-900">2. Hub Grading & Cross-Docking</h3>
+            <h3 className="font-bold text-base text-slate-900">2. Tagged Pickup & Live Map</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Feeder pickups consolidate at your regional hub where crates are weighed, graded, and
-              loaded onto a full long-haul truck.
+              Assigned drivers follow the live OpenStreetMap corridor, scan your crate tag, and
+              consolidate loads along the highway.
             </p>
           </div>
 
@@ -395,10 +388,10 @@ export default function LandingAuthView({ pools }) {
             <div className="w-11 h-11 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center mb-4">
               <Factory className="w-6 h-6" />
             </div>
-            <h3 className="font-bold text-base text-slate-900">3. Direct Processor Gate Payout</h3>
+            <h3 className="font-bold text-base text-slate-900">3. Photo Proof & Escrow Release</h3>
             <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-              Bypass farmgate middlemen and earn full off-taker contract prices straight to your
-              M-Pesa account upon delivery.
+              Upon arrival at the drop location, the driver uploads a photo confirmation to unlock
+              M-Pesa escrow payouts.
             </p>
           </div>
         </div>
