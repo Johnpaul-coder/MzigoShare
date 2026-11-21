@@ -17,6 +17,7 @@ import {
   assignDriverToPool,
   assignTruckToPool,
   subscribeToFleetTrucks,
+  updatePoolTripStatus,
 } from '../services/poolService';
 import { createDriverAccountByAdmin } from '../services/authService';
 import HubSpokeMap from './HubSpokeMap';
@@ -67,11 +68,46 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
   const [driverMsg, setDriverMsg] = useState('');
   const [driverErr, setDriverErr] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState(null);
+  const [dispatchingPoolId, setDispatchingPoolId] = useState(null);
+  const [dispatchBanner, setDispatchBanner] = useState({ type: '', text: '' });
 
   useEffect(() => {
     const unsub = subscribeToFleetTrucks(setTrucks);
     return () => unsub();
   }, []);
+
+  const handleAssignAndDispatch = async (pool, driverId, startPickupNow = false) => {
+    const chosenDriver = drivers.find((d) => d.id === driverId);
+    if (!chosenDriver) {
+      setDispatchBanner({
+        type: 'error',
+        text: 'Select a vetted driver first before dispatching.',
+      });
+      return;
+    }
+
+    setDispatchingPoolId(pool.id);
+    setDispatchBanner({ type: '', text: '' });
+    try {
+      await assignDriverToPool(pool.id, chosenDriver);
+      if (startPickupNow) {
+        await updatePoolTripStatus(pool.id, 'Loading Pickups');
+      }
+      setDispatchBanner({
+        type: 'success',
+        text: startPickupNow
+          ? `Dispatched ${chosenDriver.fullName} on ${pool.corridor} — Status set to "Loading Pickups"!`
+          : `Assigned ${chosenDriver.fullName} (${chosenDriver.vehiclePlate || pool.vehiclePlate}) to ${pool.corridor}.`,
+      });
+    } catch (err) {
+      setDispatchBanner({
+        type: 'error',
+        text: `Dispatch failed: ${err.message}`,
+      });
+    } finally {
+      setDispatchingPoolId(null);
+    }
+  };
 
   const handleRegisterTruck = async (e) => {
     e.preventDefault();
@@ -569,7 +605,9 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
                           {t.contractRate}
                         </span>
                       </div>
-                      <div className="font-bold text-slate-900">{t.vehicleType} ({t.maxCapacityKg} kg)</div>
+                      <div className="font-bold text-slate-900">
+                        {t.vehicleType} ({t.maxCapacityKg} kg)
+                      </div>
                       <div className="text-[11px] text-slate-600">
                         Owner: <strong>{t.ownerName}</strong> ({t.ownerPhone})
                       </div>
@@ -740,9 +778,26 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
 
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
-              <h3 className="font-extrabold text-base text-slate-900">
-                Assign Vetted Drivers to Active Route Manifests
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-extrabold text-base text-slate-900">
+                  Assign & Dispatch Vetted Drivers to Route Manifests
+                </h3>
+                <span className="text-[11px] font-semibold text-slate-500">
+                  {pools.length} Active Route(s)
+                </span>
+              </div>
+
+              {dispatchBanner.text && (
+                <div
+                  className={`rounded-xl px-3.5 py-2.5 text-xs font-bold border ${
+                    dispatchBanner.type === 'error'
+                      ? 'bg-red-50 border-red-200 text-red-700'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  }`}
+                >
+                  {dispatchBanner.text}
+                </div>
+              )}
 
               {pools.length === 0 ? (
                 <p className="text-xs text-slate-500">
@@ -750,38 +805,94 @@ export default function AdminPortal({ pools, drivers, onOpenCreatePool }) {
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {pools.map((pool) => (
-                    <div
-                      key={pool.id}
-                      className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3"
-                    >
-                      <div>
-                        <div className="text-xs font-extrabold text-slate-900">{pool.corridor}</div>
-                        <div className="text-[11px] text-slate-500">
-                          {pool.distanceKm} km • Driver in Custody:{' '}
-                          <strong className="text-emerald-700">
-                            {pool.driverName} ({pool.vehiclePlate})
-                          </strong>
+                  {pools.map((pool) => {
+                    const fillPct = pool.maxCapacityKg
+                      ? Math.min(
+                          Math.round(((pool.currentWeightKg || 0) / pool.maxCapacityKg) * 100),
+                          100
+                        )
+                      : 0;
+                    const isFull = fillPct >= 100;
+                    const isBusy = dispatchingPoolId === pool.id;
+
+                    return (
+                      <div
+                        key={pool.id}
+                        className={`p-4 rounded-xl border space-y-3 ${
+                          isFull
+                            ? 'border-emerald-300 bg-emerald-50/40'
+                            : 'border-slate-200 bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-slate-900">
+                                {pool.corridor}
+                              </span>
+                              <span
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                  isFull
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {isFull ? '100% FULL • READY FOR DISPATCH' : `${fillPct}% Full`}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-500 mt-0.5">
+                              {pool.distanceKm} km • Stage:{' '}
+                              <strong className="text-slate-800">
+                                {pool.tripStatus || 'Awaiting Cargo'}
+                              </strong>{' '}
+                              • Driver in Custody:{' '}
+                              <strong className="text-emerald-700">
+                                {pool.driverName || 'Unassigned'} ({pool.vehiclePlate})
+                              </strong>
+                            </div>
+                          </div>
+
+                          <span className="text-xs font-bold text-slate-700">
+                            {pool.currentWeightKg || 0} / {pool.maxCapacityKg} kg
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={pool.driverId || ''}
+                            disabled={isBusy}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                handleAssignAndDispatch(pool, e.target.value, false);
+                              }
+                            }}
+                            className="flex-1 min-w-[210px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                          >
+                            <option value="">-- Select Vetted Driver --</option>
+                            {drivers.map((d) => (
+                              <option key={d.id} value={d.id}>
+                                {d.fullName} ({d.vehiclePlate || 'No Plate'} • {d.licenseNo})
+                              </option>
+                            ))}
+                          </select>
+
+                          <button
+                            type="button"
+                            disabled={isBusy || !pool.driverId}
+                            onClick={() => handleAssignAndDispatch(pool, pool.driverId, true)}
+                            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-xs font-extrabold transition"
+                          >
+                            {isBusy
+                              ? 'Dispatching...'
+                              : pool.tripStatus === 'Loading Pickups' ||
+                                pool.tripStatus === 'In Transit'
+                              ? 'Re-Send Dispatch Alert'
+                              : 'Dispatch & Start Pickups'}
+                          </button>
                         </div>
                       </div>
-
-                      <select
-                        value={pool.driverId || ''}
-                        onChange={(e) => {
-                          const chosen = drivers.find((d) => d.id === e.target.value);
-                          if (chosen) assignDriverToPool(pool.id, chosen);
-                        }}
-                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
-                      >
-                        <option value="">-- Assign Vetted Driver --</option>
-                        {drivers.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.fullName} ({d.vehiclePlate || 'No Plate'} • {d.licenseNo})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
