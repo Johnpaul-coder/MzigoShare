@@ -9,6 +9,7 @@ import {
   Scale,
   CheckCircle2,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import { KENYA_LOCATIONS } from '../utils/kenyaLocations';
 import MpesaStkModal from './MpesaStkModal';
@@ -20,7 +21,7 @@ export default function BookingForm({ pool, userProfile, onBook }) {
   const [farmerName, setFarmerName] = useState(userProfile?.fullName || '');
   const [village, setVillage] = useState(userProfile?.village || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
-  const [weightKg, setWeightKg] = useState(Math.min(150, remainingKg || 150));
+  const [weightKg, setWeightKg] = useState(remainingKg > 0 ? Math.min(150, remainingKg) : 0);
   const [stkOpen, setStkOpen] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
   const [lastReceipt, setLastReceipt] = useState(null);
@@ -34,7 +35,7 @@ export default function BookingForm({ pool, userProfile, onBook }) {
   }, [userProfile]);
 
   useEffect(() => {
-    setWeightKg(Math.min(150, remainingKg || 150));
+    setWeightKg(remainingKg > 0 ? Math.min(150, remainingKg) : 0);
   }, [pool.id, remainingKg]);
 
   const numericWeight = Math.min(Math.max(Number(weightKg) || 0, 0), remainingKg);
@@ -75,7 +76,8 @@ export default function BookingForm({ pool, userProfile, onBook }) {
       amount: amountPaid,
       weight: pendingBooking.weightKg,
     });
-    setWeightKg(Math.min(100, Math.max(remainingKg - pendingBooking.weightKg, 0)));
+    const nextRemaining = Math.max(remainingKg - pendingBooking.weightKg, 0);
+    setWeightKg(nextRemaining > 0 ? Math.min(100, nextRemaining) : 0);
   };
 
   return (
@@ -130,192 +132,203 @@ export default function BookingForm({ pool, userProfile, onBook }) {
             </div>
           )}
 
-          <datalist id="farmer-pickups">
-            {KENYA_LOCATIONS.filter((l) => l.type !== 'processor').map((loc) => (
-              <option key={loc.name} value={loc.name} />
-            ))}
-          </datalist>
-
-          <form onSubmit={handleInitiateMpesa} className="space-y-5">
-            {/* Step 1: Shipper & Pickup */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center">
-                  1
-                </span>
-                Shipper & Pickup Point
+          {remainingKg <= 0 ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center space-y-2.5">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                <Lock className="w-5 h-5" />
               </div>
-
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Farmer / Shipper Name
-                  </label>
-                  <div className="relative">
-                    <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Full name"
-                      value={farmerName}
-                      onChange={(e) => setFarmerName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    M-Pesa Phone Number
-                  </label>
-                  <div className="relative">
-                    <Smartphone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="tel"
-                      required
-                      placeholder="07XX XXX XXX"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Collection Point / Market Stop
-                </label>
-                <div className="relative">
-                  <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    list="farmer-pickups"
-                    required
-                    placeholder="e.g., Masii Market, Kathonzweni, Tala"
-                    value={village}
-                    onChange={(e) => setVillage(e.target.value)}
-                    className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
-                  />
-                </div>
-              </div>
+              <h4 className="text-sm font-extrabold text-slate-900">
+                Truck Pool 100% Full ({pool.maxCapacityKg.toLocaleString()} kg)
+              </h4>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                This corridor truck has reached maximum capacity and is closed for new bookings. Select another open truck on the left or wait for the next scheduled departure.
+              </p>
             </div>
+          ) : (
+            <>
+              <datalist id="farmer-pickups">
+                {KENYA_LOCATIONS.filter((l) => l.type !== 'processor').map((loc) => (
+                  <option key={loc.name} value={loc.name} />
+                ))}
+              </datalist>
 
-            {/* Step 2: Cargo Weight & Quick Chips */}
-            <div className="space-y-3 pt-1 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
-                  <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center">
-                    2
-                  </span>
-                  Cargo Weight (kg)
+              <form onSubmit={handleInitiateMpesa} className="space-y-5">
+                {/* Step 1: Shipper & Pickup */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                    <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center">
+                      1
+                    </span>
+                    Shipper & Pickup Point
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Farmer / Shipper Name
+                      </label>
+                      <div className="relative">
+                        <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="Full name"
+                          value={farmerName}
+                          onChange={(e) => setFarmerName(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        M-Pesa Phone Number
+                      </label>
+                      <div className="relative">
+                        <Smartphone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="tel"
+                          required
+                          placeholder="07XX XXX XXX"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Collection Point / Market Stop
+                    </label>
+                    <div className="relative">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        list="farmer-pickups"
+                        required
+                        placeholder="e.g., Masii Market, Kathonzweni, Tala"
+                        value={village}
+                        onChange={(e) => setVillage(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 pl-8 pr-3 py-2.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-700">
-                  Est. Rate: KSh {pooledCostPerKg.toFixed(2)}/kg
-                </span>
-              </div>
 
-              <div className="relative">
-                <Scale className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="number"
-                  min="10"
-                  max={remainingKg}
-                  required
-                  disabled={remainingKg <= 0}
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-200 pl-10 pr-14 py-2.5 text-sm font-extrabold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 transition"
-                />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                  KG
-                </span>
-              </div>
+                {/* Step 2: Cargo Weight & Quick Chips */}
+                <div className="space-y-3 pt-1 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                      <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] flex items-center justify-center">
+                        2
+                      </span>
+                      Cargo Weight (kg)
+                    </div>
+                    <span className="text-[11px] font-semibold text-emerald-700">
+                      Est. Rate: KSh {pooledCostPerKg.toFixed(2)}/kg
+                    </span>
+                  </div>
 
-              {remainingKg > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {QUICK_WEIGHTS.filter((w) => w <= remainingKg).map((w) => (
+                  <div className="relative">
+                    <Scale className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="number"
+                      min="10"
+                      max={remainingKg}
+                      required
+                      value={weightKg}
+                      onChange={(e) => setWeightKg(e.target.value)}
+                      className="w-full rounded-xl border-2 border-slate-200 pl-10 pr-14 py-2.5 text-sm font-extrabold text-slate-900 bg-slate-50 focus:bg-white focus:outline-none focus:border-emerald-600 transition"
+                    />
+                    <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      KG
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_WEIGHTS.filter((w) => w <= remainingKg).map((w) => (
+                      <button
+                        key={w}
+                        type="button"
+                        onClick={() => setWeightKg(w)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
+                          Number(weightKg) === w
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {w} kg
+                      </button>
+                    ))}
                     <button
-                      key={w}
                       type="button"
-                      onClick={() => setWeightKg(w)}
+                      onClick={() => setWeightKg(remainingKg)}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                        Number(weightKg) === w
-                          ? 'bg-emerald-600 text-white border-emerald-600'
+                        Number(weightKg) === remainingKg
+                          ? 'bg-slate-900 text-white border-slate-900'
                           : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      {w} kg
+                      Fill Max ({remainingKg} kg)
                     </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setWeightKg(remainingKg)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
-                      Number(weightKg) === remainingKg
-                        ? 'bg-slate-900 text-white border-slate-900'
-                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    Fill Max ({remainingKg} kg)
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Step 3: Financial Breakdown Card */}
-            <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-white p-4 space-y-3 border border-slate-800">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <Truck className="w-3.5 h-3.5 text-emerald-400" />
-                  Pooled Freight Total
-                </span>
-                <span className="text-lg font-extrabold text-amber-300">
-                  KSh {farmerFreightShare.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
-                <div className="bg-white/5 rounded-xl p-2.5">
-                  <div className="text-[10px] text-slate-400">Solo Charter Savings</div>
-                  <div className="font-extrabold text-emerald-400 mt-0.5">
-                    KSh {soloCharterSavings.toLocaleString()}
                   </div>
                 </div>
-                <div className="bg-white/5 rounded-xl p-2.5">
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3 text-emerald-400" />
-                    Net Gate Payout
-                  </div>
-                  <div className="font-extrabold text-white mt-0.5">
-                    KSh {netFarmerEarnings.toLocaleString()}
-                  </div>
-                </div>
-              </div>
 
-              {extraIncomeGain > 0 && (
-                <div className="flex items-center justify-between text-[11px] bg-emerald-500/15 border border-emerald-500/25 rounded-xl px-3 py-1.5 text-emerald-300 font-semibold">
-                  <span className="flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Extra gain vs. middleman gate price
-                  </span>
-                  <span className="font-extrabold">+KSh {extraIncomeGain.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
+                {/* Step 3: Financial Breakdown Card */}
+                <div className="rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950 text-white p-4 space-y-3 border border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Truck className="w-3.5 h-3.5 text-emerald-400" />
+                      Pooled Freight Total
+                    </span>
+                    <span className="text-lg font-extrabold text-amber-300">
+                      KSh {farmerFreightShare.toLocaleString()}
+                    </span>
+                  </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={remainingKg <= 0 || numericWeight <= 0}
-              className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer"
-            >
-              <Smartphone className="w-4 h-4" />
-              {remainingKg <= 0
-                ? 'Truck Pool Full (100% Capacity)'
-                : `Lock Slot & Verify M-Pesa • KSh ${Math.max(farmerFreightShare, 50).toLocaleString()}`}
-            </button>
-          </form>
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
+                    <div className="bg-white/5 rounded-xl p-2.5">
+                      <div className="text-[10px] text-slate-400">Solo Charter Savings</div>
+                      <div className="font-extrabold text-emerald-400 mt-0.5">
+                        KSh {soloCharterSavings.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-2.5">
+                      <div className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        Net Gate Payout
+                      </div>
+                      <div className="font-extrabold text-white mt-0.5">
+                        KSh {netFarmerEarnings.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {extraIncomeGain > 0 && (
+                    <div className="flex items-center justify-between text-[11px] bg-emerald-500/15 border border-emerald-500/25 rounded-xl px-3 py-1.5 text-emerald-300 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Extra gain vs. middleman gate price
+                      </span>
+                      <span className="font-extrabold">+KSh {extraIncomeGain.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={numericWeight <= 0}
+                  className="w-full py-3.5 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition cursor-pointer"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  {`Lock Slot & Verify M-Pesa • KSh ${Math.max(farmerFreightShare, 50).toLocaleString()}`}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
 
